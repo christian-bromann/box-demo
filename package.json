@@ -1,0 +1,58 @@
+{
+  "name": "box-deepagents-knowledge-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Enterprise Knowledge Assistant — a streaming RAG agent built on Box + LangChain Deep Agents",
+  "scripts": {
+    "dev": "run-p --race dev:web dev:agent",
+    "dev:web": "vite",
+    "dev:agent": "langgraphjs dev --port 2024 --host 127.0.0.1 --no-browser",
+    "build": "vite build",
+    "preview": "vite preview",
+    "seed": "bun scripts/seed.ts",
+    "whoami": "bun scripts/whoami.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^1.3.19",
+    "@langchain/core": "^1.1.27",
+    "@langchain/langgraph": "^1.1.3",
+    "@langchain/openai": "^1.2.9",
+    "@langchain/react": "^1.0.26",
+    "@radix-ui/react-avatar": "^1.1.10",
+    "@radix-ui/react-scroll-area": "^1.2.9",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.7",
+    "box-node-sdk": "^10.5.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "deepagents": "^1.10.5",
+    "hono": "^4.12.27",
+    "langchain": "^1.2.25",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@langchain/langgraph-cli": "^1.4.1",
+    "@tailwindcss/vite": "^4.3.2",
+    "@types/bun": "latest",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^6.0.3",
+    "npm-run-all2": "^9.0.2",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^8.1.2"
+  },
+  "overrides": {
+    "@langchain/core": "^1.1.27"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "node_version": "20",
+  "dependencies": ["."],
+  "graphs": {
+    "knowledge-assistant": "./agent/agent/index.ts:agent"
+  },
+  "http": {
+    "app": "./agent/app.ts:app"
+  },
+  "env": ".env"
+}
