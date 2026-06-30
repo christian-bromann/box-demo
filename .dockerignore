@@ -1,0 +1,15 @@
+# The deploy build compiles the frontend inside the image (see the `deploy`
+# script's --build-command), so the local build output is never uploaded.
+node_modules
+.git
+.langgraph_api
+agent/ui
+dist
+
+# Never bake secrets/local state into the image; env is passed as secrets.
+.env
+.env.local
+.box-tokens.json
+
+*.log
+.DS_Store

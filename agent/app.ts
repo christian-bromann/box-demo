@@ -58,10 +58,12 @@ app.get("/api/files", async (c) => {
 });
 
 // ── Frontend (SPA) ──────────────────────────────────────────────────────────
-// `bun run deploy` builds the React app into `dist/` (with base `/ui/`) before
-// `langgraphjs deploy` bakes it into the image. We serve those assets here so a
-// single deployment hosts both the agent API and its UI at `/ui`.
-const UI_DIR = fileURLToPath(new URL("../dist", import.meta.url));
+// `bun run deploy` builds the React app into `agent/ui` (with base `/ui/`)
+// before `langgraphjs deploy` bakes it into the image. It lives next to this
+// file (not in a gitignored `dist/`) so the deploy archive — which honors
+// `.gitignore` — actually ships it. We serve those assets here so a single
+// deployment hosts both the agent API and its UI at `/ui`.
+const UI_DIR = fileURLToPath(new URL("./ui", import.meta.url));
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -83,7 +85,7 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 async function serveUiAsset(relPath: string): Promise<Response> {
-  // Strip any `../` segments so a request can never escape the dist directory.
+  // Strip any `../` segments so a request can never escape the UI directory.
   const safe = normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, "");
   let filePath = join(UI_DIR, safe);
 

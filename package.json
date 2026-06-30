@@ -10,9 +10,8 @@
     "dev:agent": "langgraphjs dev --port 2024 --host 127.0.0.1 --no-browser",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "run-s deploy:ui deploy:agent",
+    "deploy": "langgraphjs deploy --remote --build-command \"npm run deploy:ui && tsx /api/langgraph_api/js/build.mts\"",
     "deploy:ui": "UI_BASE=/ui/ vite build",
-    "deploy:agent": "langgraphjs deploy --remote",
     "seed": "bun scripts/seed.ts",
     "whoami": "bun scripts/whoami.ts",
     "typecheck": "tsc --noEmit"

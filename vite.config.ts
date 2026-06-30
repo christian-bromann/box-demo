@@ -10,8 +10,8 @@ const LANGGRAPH_URL = process.env.LANGGRAPH_URL ?? "http://127.0.0.1:2024";
 // React app and proxies everything else to LangGraph so the browser stays
 // single-origin and tokens never reach the client.
 // When deploying, the SPA is served behind a custom `/ui` path on the LangGraph
-// server (see `scripts/deploy.ts` and `agent/app.ts`). The deploy build sets
-// `UI_BASE=/ui/` so asset URLs are emitted with that prefix; local dev keeps `/`.
+// server (see the `deploy` scripts in package.json and `agent/app.ts`). The
+// deploy build sets `UI_BASE=/ui/` so asset URLs carry that prefix; dev keeps `/`.
 const UI_BASE = process.env.UI_BASE ?? "/";
 
 export default defineConfig({
@@ -35,7 +35,12 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../dist",
+    // Emit next to `app.ts` so the Hono server can serve it from `./ui`.
+    // This output is gitignored and excluded from the deploy archive; the
+    // deploy build (re)generates it inside the image via `npm run deploy:ui`
+    // (see the `deploy` --build-command in package.json), so nothing built
+    // ever needs to be committed.
+    outDir: "../agent/ui",
     emptyOutDir: true,
   },
 });

@@ -20,5 +20,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["agent", "src", "scripts"]
+  "include": ["agent", "src", "scripts"],
+  "exclude": ["agent/ui", "dist", "node_modules"]
 }
