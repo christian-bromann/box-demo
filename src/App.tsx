@@ -10,7 +10,10 @@ import { ActivityPanel, type TodoItem } from "@/components/ActivityPanel";
 import { fetchConfig, fetchFiles, type AppConfig, type BoxFile } from "@/lib/api";
 
 const ASSISTANT_ID = "knowledge-assistant";
-const API_URL = `${window.location.origin}/lg`;
+// In dev, Vite proxies `/lg` -> the LangGraph dev server (see `vite.config.ts`).
+// In the deployed build the SPA is served from `/ui` on the LangGraph server
+// itself, so the graph API lives at the same origin's root.
+const API_URL = import.meta.env.DEV ? `${window.location.origin}/lg` : window.location.origin;
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -42,7 +45,7 @@ export function App() {
   useEffect(() => {
     fetchConfig()
       .then(setConfig)
-      .catch(() => {});
+      .catch(() => { });
     void loadFiles();
   }, [loadFiles]);
 

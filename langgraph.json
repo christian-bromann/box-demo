@@ -1,6 +1,9 @@
 {
-  "node_version": "20",
-  "dependencies": ["."],
+  "node_version": "22",
+  "api_version": "0.11.0rc8",
+  "dependencies": [
+    "."
+  ],
   "graphs": {
     "knowledge-assistant": "./agent/agent/index.ts:agent"
   },

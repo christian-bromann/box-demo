@@ -1,3 +1,6 @@
+import { readFile, stat } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { getBoxService } from "./box/client.js";
 import { describeModel } from "./agent/model.js";
@@ -20,9 +23,9 @@ app.get("/api/config", (c) => {
   const folderId = process.env.BOX_ROOT_FOLDER_ID?.trim() ?? "";
   const boxConfigured = Boolean(
     process.env.BOX_DEVELOPER_TOKEN?.trim() ||
-      (process.env.BOX_CLIENT_ID?.trim() &&
-        process.env.BOX_CLIENT_SECRET?.trim() &&
-        (process.env.BOX_USER_ID?.trim() || process.env.BOX_ENTERPRISE_ID?.trim())),
+    (process.env.BOX_CLIENT_ID?.trim() &&
+      process.env.BOX_CLIENT_SECRET?.trim() &&
+      (process.env.BOX_USER_ID?.trim() || process.env.BOX_ENTERPRISE_ID?.trim())),
   );
 
   return c.json({
@@ -53,3 +56,67 @@ app.get("/api/files", async (c) => {
     });
   }
 });
+
+// ── Frontend (SPA) ──────────────────────────────────────────────────────────
+// `bun run deploy` builds the React app into `dist/` (with base `/ui/`) before
+// `langgraphjs deploy` bakes it into the image. We serve those assets here so a
+// single deployment hosts both the agent API and its UI at `/ui`.
+const UI_DIR = fileURLToPath(new URL("../dist", import.meta.url));
+
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".map": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+};
+
+async function serveUiAsset(relPath: string): Promise<Response> {
+  // Strip any `../` segments so a request can never escape the dist directory.
+  const safe = normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, "");
+  let filePath = join(UI_DIR, safe);
+
+  try {
+    if ((await stat(filePath)).isDirectory()) {
+      filePath = join(filePath, "index.html");
+    }
+    const body = await readFile(filePath);
+    const ext = extname(filePath);
+    const immutable = safe.startsWith("assets/");
+    return new Response(body, {
+      headers: {
+        "content-type": MIME_TYPES[ext] ?? "application/octet-stream",
+        "cache-control": immutable
+          ? "public, max-age=31536000, immutable"
+          : "no-cache",
+      },
+    });
+  } catch {
+    // SPA fallback: serve index.html for unknown (client-routed) paths.
+    try {
+      const html = await readFile(join(UI_DIR, "index.html"));
+      return new Response(html, {
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },
+      });
+    } catch {
+      return new Response(
+        "UI assets not found. Run `bun run build` (or `bun run deploy`) to build the frontend.",
+        { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } },
+      );
+    }
+  }
+}
+
+app.get("/ui", (c) => c.redirect("/ui/"));
+app.get("/ui/*", (c) => serveUiAsset(c.req.path.replace(/^\/ui\/?/, "")));

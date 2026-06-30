@@ -9,8 +9,14 @@ const LANGGRAPH_URL = process.env.LANGGRAPH_URL ?? "http://127.0.0.1:2024";
 // custom `/api/*` routes (see `langgraph.json` -> `http.app`). Vite serves the
 // React app and proxies everything else to LangGraph so the browser stays
 // single-origin and tokens never reach the client.
+// When deploying, the SPA is served behind a custom `/ui` path on the LangGraph
+// server (see `scripts/deploy.ts` and `agent/app.ts`). The deploy build sets
+// `UI_BASE=/ui/` so asset URLs are emitted with that prefix; local dev keeps `/`.
+const UI_BASE = process.env.UI_BASE ?? "/";
+
 export default defineConfig({
   root: "src",
+  base: UI_BASE,
   plugins: [react(), tailwindcss()],
   clearScreen: false,
   resolve: {
