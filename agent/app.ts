@@ -72,14 +72,23 @@ const INTERNAL_API_URL =
 const LG_API_KEY =
   process.env.LANGSMITH_API_KEY?.trim() || process.env.LANGGRAPH_API_KEY?.trim();
 
-// Response headers that must not be copied verbatim: `fetch` already decodes
-// the body, so a stale content-encoding/length would corrupt the stream.
-const STRIPPED_RESPONSE_HEADERS = [
-  "content-encoding",
-  "content-length",
-  "transfer-encoding",
+// Hop-by-hop headers that must not be forwarded. Copying the inbound
+// `transfer-encoding: chunked` in particular makes undici reject the outgoing
+// request ("invalid transfer-encoding header") because we send a fixed-length
+// body. On the response side, `fetch` already decodes the body, so a stale
+// content-encoding/length would corrupt the stream.
+const HOP_BY_HOP_HEADERS = [
+  "host",
   "connection",
+  "keep-alive",
+  "transfer-encoding",
+  "content-length",
+  "te",
+  "trailer",
+  "upgrade",
+  "proxy-connection",
 ];
+const STRIPPED_RESPONSE_HEADERS = ["content-encoding", "content-length", "transfer-encoding", "connection"];
 
 app.all("/lg/*", async (c) => {
   const incoming = new URL(c.req.url);
@@ -88,8 +97,7 @@ app.all("/lg/*", async (c) => {
   target.search = incoming.search;
 
   const headers = new Headers(c.req.raw.headers);
-  headers.delete("host");
-  headers.delete("content-length");
+  for (const h of HOP_BY_HOP_HEADERS) headers.delete(h);
   if (LG_API_KEY) headers.set("x-api-key", LG_API_KEY);
 
   const method = c.req.method;
