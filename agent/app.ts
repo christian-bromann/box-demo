@@ -2,6 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
+import { proxy } from "hono/proxy";
 import { getBoxService } from "./box/client.js";
 import { describeModel } from "./agent/model.js";
 import { SUGGESTED_QUESTIONS } from "./suggestions.js";
@@ -72,48 +73,20 @@ const INTERNAL_API_URL =
 const LG_API_KEY =
   process.env.LANGSMITH_API_KEY?.trim() || process.env.LANGGRAPH_API_KEY?.trim();
 
-// Hop-by-hop headers that must not be forwarded. Copying the inbound
-// `transfer-encoding: chunked` in particular makes undici reject the outgoing
-// request ("invalid transfer-encoding header") because we send a fixed-length
-// body. On the response side, `fetch` already decodes the body, so a stale
-// content-encoding/length would corrupt the stream.
-const HOP_BY_HOP_HEADERS = [
-  "host",
-  "connection",
-  "keep-alive",
-  "transfer-encoding",
-  "content-length",
-  "te",
-  "trailer",
-  "upgrade",
-  "proxy-connection",
-];
-const STRIPPED_RESPONSE_HEADERS = ["content-encoding", "content-length", "transfer-encoding", "connection"];
-
-app.all("/lg/*", async (c) => {
-  const incoming = new URL(c.req.url);
+app.all("/lg/*", (c) => {
   const target = new URL(INTERNAL_API_URL);
-  target.pathname = incoming.pathname.replace(/^\/lg/, "") || "/";
-  target.search = incoming.search;
+  target.pathname = c.req.path.replace(/^\/lg/, "") || "/";
+  target.search = new URL(c.req.url).search;
 
+  // Inject the API key onto a copy of the original request. Hono's `proxy`
+  // then forwards it verbatim — streaming the body and stripping hop-by-hop
+  // headers (transfer-encoding, etc.) from both request and response — so we
+  // keep the browser's headers (content-type, cookies) without hand-rolling
+  // any of that. Passing `headers` directly would instead replace them all.
   const headers = new Headers(c.req.raw.headers);
-  for (const h of HOP_BY_HOP_HEADERS) headers.delete(h);
   if (LG_API_KEY) headers.set("x-api-key", LG_API_KEY);
 
-  const method = c.req.method;
-  const body =
-    method === "GET" || method === "HEAD" ? undefined : await c.req.arrayBuffer();
-
-  const upstream = await fetch(target, { method, headers, body, redirect: "manual" });
-
-  const responseHeaders = new Headers(upstream.headers);
-  for (const h of STRIPPED_RESPONSE_HEADERS) responseHeaders.delete(h);
-
-  // Stream the (possibly SSE) body straight through without buffering.
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: responseHeaders,
-  });
+  return proxy(target, { raw: new Request(c.req.raw, { headers }) });
 });
 
 // ── Frontend (SPA) ──────────────────────────────────────────────────────────
