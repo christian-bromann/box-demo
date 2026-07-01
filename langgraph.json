@@ -10,5 +10,8 @@
   "http": {
     "app": "./agent/app.ts:app"
   },
+  "auth": {
+    "path": "./agent/auth.ts:auth"
+  },
   "env": ".env"
 }

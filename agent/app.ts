@@ -59,32 +59,30 @@ app.get("/api/files", async (c) => {
 });
 
 // ── LangGraph API proxy (`/lg/*`) ───────────────────────────────────────────
-// The browser talks to the graph API through this same-origin proxy so the
-// LangSmith API key never reaches the client. On LangGraph Platform the API
-// key is enforced at the gateway in front of the container; custom HTTP routes
-// (like this one and `/api/*`) reach the server directly, so forwarding to the
-// internal server on `127.0.0.1:$PORT` bypasses that gateway. We still attach
-// `x-api-key` when a key is present, so this also works if the server itself
-// enforces auth. In dev, Vite proxies `/lg` straight to the dev server and
-// this route is never hit.
+// The browser talks to the graph API through this same-origin proxy so no
+// credential ever reaches the client. This route is a custom HTTP route, so it
+// reaches the server directly; we forward to the internal graph server on
+// `127.0.0.1:$PORT` and inject a server-only shared secret that our custom auth
+// handler (`auth.ts`) trusts. Direct, anonymous hits on the core API are
+// rejected. In dev, Vite proxies `/lg` straight to the dev server (which has no
+// auth) and this route is never hit.
 const INTERNAL_API_URL =
   process.env.LANGGRAPH_API_URL?.trim() ||
   `http://127.0.0.1:${process.env.PORT?.trim() || "8000"}`;
-const LG_API_KEY =
-  process.env.LANGSMITH_API_KEY?.trim() || process.env.LANGGRAPH_API_KEY?.trim();
+const UI_PROXY_SECRET = process.env.UI_PROXY_SECRET?.trim();
 
 app.all("/lg/*", (c) => {
   const target = new URL(INTERNAL_API_URL);
   target.pathname = c.req.path.replace(/^\/lg/, "") || "/";
   target.search = new URL(c.req.url).search;
 
-  // Inject the API key onto a copy of the original request. Hono's `proxy`
-  // then forwards it verbatim — streaming the body and stripping hop-by-hop
-  // headers (transfer-encoding, etc.) from both request and response — so we
-  // keep the browser's headers (content-type, cookies) without hand-rolling
-  // any of that. Passing `headers` directly would instead replace them all.
+  // Inject the shared secret onto a copy of the original request. Hono's
+  // `proxy` then forwards it verbatim — streaming the body and stripping
+  // hop-by-hop headers (transfer-encoding, etc.) from both request and
+  // response — so we keep the browser's headers (content-type) without
+  // hand-rolling any of that. Passing `headers` directly would replace them all.
   const headers = new Headers(c.req.raw.headers);
-  if (LG_API_KEY) headers.set("x-api-key", LG_API_KEY);
+  if (UI_PROXY_SECRET) headers.set("x-ui-proxy-secret", UI_PROXY_SECRET);
 
   return proxy(target, { raw: new Request(c.req.raw, { headers }) });
 });
