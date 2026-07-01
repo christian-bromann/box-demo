@@ -31,6 +31,12 @@ export default defineConfig({
       "/lg": {
         target: LANGGRAPH_URL,
         rewrite: (path) => path.replace(/^\/lg/, ""),
+        // The dev server (`langgraphjs dev`) enforces the same custom auth as
+        // the deployment (see `agent/auth.ts`), so inject the shared secret
+        // here just like the deployed `/lg` proxy does.
+        headers: process.env.UI_PROXY_SECRET
+          ? { "x-ui-proxy-secret": process.env.UI_PROXY_SECRET }
+          : undefined,
       },
     },
   },
