@@ -57,6 +57,57 @@ app.get("/api/files", async (c) => {
   }
 });
 
+// ── LangGraph API proxy (`/lg/*`) ───────────────────────────────────────────
+// The browser talks to the graph API through this same-origin proxy so the
+// LangSmith API key never reaches the client. On LangGraph Platform the API
+// key is enforced at the gateway in front of the container; custom HTTP routes
+// (like this one and `/api/*`) reach the server directly, so forwarding to the
+// internal server on `127.0.0.1:$PORT` bypasses that gateway. We still attach
+// `x-api-key` when a key is present, so this also works if the server itself
+// enforces auth. In dev, Vite proxies `/lg` straight to the dev server and
+// this route is never hit.
+const INTERNAL_API_URL =
+  process.env.LANGGRAPH_API_URL?.trim() ||
+  `http://127.0.0.1:${process.env.PORT?.trim() || "8000"}`;
+const LG_API_KEY =
+  process.env.LANGSMITH_API_KEY?.trim() || process.env.LANGGRAPH_API_KEY?.trim();
+
+// Response headers that must not be copied verbatim: `fetch` already decodes
+// the body, so a stale content-encoding/length would corrupt the stream.
+const STRIPPED_RESPONSE_HEADERS = [
+  "content-encoding",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+];
+
+app.all("/lg/*", async (c) => {
+  const incoming = new URL(c.req.url);
+  const target = new URL(INTERNAL_API_URL);
+  target.pathname = incoming.pathname.replace(/^\/lg/, "") || "/";
+  target.search = incoming.search;
+
+  const headers = new Headers(c.req.raw.headers);
+  headers.delete("host");
+  headers.delete("content-length");
+  if (LG_API_KEY) headers.set("x-api-key", LG_API_KEY);
+
+  const method = c.req.method;
+  const body =
+    method === "GET" || method === "HEAD" ? undefined : await c.req.arrayBuffer();
+
+  const upstream = await fetch(target, { method, headers, body, redirect: "manual" });
+
+  const responseHeaders = new Headers(upstream.headers);
+  for (const h of STRIPPED_RESPONSE_HEADERS) responseHeaders.delete(h);
+
+  // Stream the (possibly SSE) body straight through without buffering.
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: responseHeaders,
+  });
+});
+
 // ── Frontend (SPA) ──────────────────────────────────────────────────────────
 // `bun run deploy` builds the React app into `agent/ui` (with base `/ui/`)
 // before `langgraphjs deploy` bakes it into the image. It lives next to this
