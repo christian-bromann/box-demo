@@ -1,16 +1,24 @@
 import { createDeepAgent } from "deepagents";
-import { buildModel } from "./model.js";
+import { model } from "./model.js";
 import { responsesHistoryFix } from "./middleware.js";
 import { ORCHESTRATOR_PROMPT } from "./prompts.js";
-import { buildSubagents } from "./subagents.js";
-import { buildBoxTools } from "./tools.js";
-
-const tools = buildBoxTools();
+import { subagents } from "./subagents.js";
+import {
+  searchBoxFiles, listBoxFiles, extractBoxFields, askBoxAi,
+  createBoxFolder, writeSummaryToBox
+} from "./tools.js";
 
 export const agent = createDeepAgent({
-  model: buildModel(),
-  tools,
-  subagents: buildSubagents(tools),
+  model,
+  tools: [
+    searchBoxFiles,
+    listBoxFiles,
+    extractBoxFields,
+    askBoxAi,
+    createBoxFolder,
+    writeSummaryToBox
+  ],
+  subagents,
   systemPrompt: ORCHESTRATOR_PROMPT,
   middleware: [responsesHistoryFix],
 }).withConfig({

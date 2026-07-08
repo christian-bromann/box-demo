@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
 import { getBoxService } from "./box/client.js";
-import { describeModel } from "./agent/model.js";
 import { SUGGESTED_QUESTIONS } from "./suggestions.js";
 
 // Custom HTTP routes mounted alongside the LangGraph dev server (see
@@ -13,14 +12,6 @@ import { SUGGESTED_QUESTIONS } from "./suggestions.js";
 export const app = new Hono();
 
 app.get("/api/config", (c) => {
-  let model: { provider: string; model: string } | null = null;
-  let modelError: string | null = null;
-  try {
-    model = describeModel();
-  } catch (err) {
-    modelError = err instanceof Error ? err.message : String(err);
-  }
-
   const folderId = process.env.BOX_ROOT_FOLDER_ID?.trim() ?? "";
   const boxConfigured = Boolean(
     process.env.BOX_DEVELOPER_TOKEN?.trim() ||
@@ -30,8 +21,6 @@ app.get("/api/config", (c) => {
   );
 
   return c.json({
-    model,
-    modelError,
     folderId,
     boxConfigured,
     assistantId: "knowledge-assistant",

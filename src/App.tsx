@@ -60,8 +60,7 @@ export function App() {
   }, [stream.isLoading, loadFiles]);
 
   const suggestions = config?.suggestions ?? [];
-  const modelLabel = config?.model ? `${config.model.provider}:${config.model.model}` : null;
-  const ready = Boolean(config?.boxConfigured && config?.model && config?.folderId);
+  const ready = Boolean(config?.boxConfigured && config?.folderId);
   const chatDisabled = !ready;
 
   const todos = ((stream.values as { todos?: TodoItem[] } | undefined)?.todos ?? []) as TodoItem[];
@@ -84,7 +83,6 @@ export function App() {
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       <Header
-        modelLabel={modelLabel}
         boxConfigured={Boolean(config?.boxConfigured)}
         hasMessages={hasMessages}
         onNewChat={() => setThreadId(null)}
@@ -102,11 +100,9 @@ export function App() {
         <main className="flex min-h-0 flex-1 flex-col">
           {config && !ready && (
             <Banner>
-              {config.modelError
-                ? config.modelError
-                : !config.boxConfigured
-                  ? "Box is not configured. Set BOX_DEVELOPER_TOKEN (or CCG credentials) in your .env."
-                  : "Set BOX_ROOT_FOLDER_ID in your .env (run `bun run seed` to get it)."}
+              {config.boxConfigured
+                ? "Box is not configured. Set BOX_DEVELOPER_TOKEN (or CCG credentials) in your .env."
+                : "Set BOX_ROOT_FOLDER_ID in your .env (run `bun run seed` to get it)."}
             </Banner>
           )}
 

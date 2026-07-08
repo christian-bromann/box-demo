@@ -89,8 +89,17 @@ export function ChatThread({
 
         {waiting && (
           <div className="flex items-center gap-3">
-            <Avatar kind="assistant" />
-            <span className="text-sm shimmer">Planning and searching Box…</span>
+            <div className="animate-pulse">
+              <Avatar kind="assistant" />
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm shimmer">Planning and searching Box…</span>
+              <span className="typing-dots" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
           </div>
         )}
 

@@ -4,12 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export function Header({
-  modelLabel,
   boxConfigured,
   hasMessages,
   onNewChat,
 }: {
-  modelLabel: string | null;
   boxConfigured: boolean;
   hasMessages: boolean;
   onNewChat: () => void;
@@ -35,11 +33,6 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2">
-        {modelLabel && (
-          <Badge variant="secondary" className="hidden font-mono sm:inline-flex">
-            {modelLabel}
-          </Badge>
-        )}
         <Badge variant={boxConfigured ? "success" : "outline"} className="hidden sm:inline-flex">
           Box {boxConfigured ? "connected" : "not configured"}
         </Badge>

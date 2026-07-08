@@ -1,6 +1,4 @@
 export interface AppConfig {
-  model: { provider: string; model: string } | null;
-  modelError: string | null;
   folderId: string;
   boxConfigured: boolean;
   assistantId: string;
