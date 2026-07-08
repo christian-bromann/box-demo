@@ -134,46 +134,16 @@ Then open **http://localhost:3000**.
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `bun run dev` | Start the LangGraph dev server (:2024) **and** the Vite dev server (:3000) |
-| `bun run dev:web` | Vite dev server only (`vite`) |
-| `bun run dev:agent` | LangGraph dev server only (`langgraphjs dev`) |
-| `bun run build` | Build the SPA for production (`vite build` → `dist/`) |
-| `bun run preview` | Preview the production build (`vite preview`) |
-| `bun run seed` | Upload the fixture docs to Box and print the folder id |
-| `bun run whoami` | Verify Box credentials and list the knowledge-base files |
-| `bun run typecheck` | `tsc --noEmit` |
-
----
-
-## Demo talk track (~5 minutes)
-
-1. **Frame it.** "This is an enterprise knowledge assistant. The content lives in Box, and the
-   brains is a LangChain Deep Agent. Nothing is answered from the model's memory — only from our
-   documents."
-
-2. **Simple, grounded lookup.** Click *"How many vacation days do employees get, and what is the
-   remote-work policy?"*
-   Point at the **activity panel**: the agent searches Box, reads the handbook with Box AI, and
-   the answer ends with a **source chip** linking straight to the Box file.
-
-3. **Structured extraction.** Ask *"When does the CloudVault vendor contract renew, and what is
-   the liability cap?"*
-   Highlight that it pulls exact terms (renewal date **2027-03-01**, liability cap **the greater
-   of $500k or trailing-12-month fees**) — show the tool call input/output and the citation.
-
-4. **The "wow" — multi-agent research.** Click *"Summarize our overall security posture across
-   SOC 2, the security questionnaire, and our policies."*
-   Watch the **plan** appear, then **subagents** spin up in parallel (security / contracts /
-   policy), each reporting back before the lead agent synthesizes one cited answer.
-
-5. **Close the loop (optional).** Ask it to *"save that as a summary to Box."* The
-   `write_summary_to_box` tool writes a Markdown report back into the knowledge base — refresh the
-   sidebar to show the new file.
-
-6. **The point.** Governance and access live in Box; the agent only ever sees what it's allowed
-   to, and every answer is traceable to a source.
+| Script              | What it does                                                               |
+| ------------------- | -------------------------------------------------------------------------- |
+| `bun run dev`       | Start the LangGraph dev server (:2024) **and** the Vite dev server (:3000) |
+| `bun run dev:web`   | Vite dev server only (`vite`)                                              |
+| `bun run dev:agent` | LangGraph dev server only (`langgraphjs dev`)                              |
+| `bun run build`     | Build the SPA for production (`vite build` → `dist/`)                      |
+| `bun run preview`   | Preview the production build (`vite preview`)                              |
+| `bun run seed`      | Upload the fixture docs to Box and print the folder id                     |
+| `bun run whoami`    | Verify Box credentials and list the knowledge-base files                   |
+| `bun run typecheck` | `tsc --noEmit`                                                             |
 
 ---
 

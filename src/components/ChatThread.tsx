@@ -3,7 +3,8 @@ import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messa
 import { BotIcon, UserIcon } from "lucide-react";
 import { Response } from "@/components/Response";
 import { Citations } from "@/components/Citations";
-import { extractCitations, stripSources } from "@/lib/messages";
+import { Reasoning } from "@/components/Reasoning";
+import { extractCitations, extractReasoning, stripSources } from "@/lib/messages";
 import { cn } from "@/lib/utils";
 
 function Avatar({ kind }: { kind: "user" | "assistant" }) {
@@ -32,7 +33,10 @@ export function ChatThread({
     () =>
       messages.filter((msg) => {
         if (HumanMessage.isInstance(msg)) return msg.text.trim().length > 0;
-        if (AIMessage.isInstance(msg)) return msg.text.trim().length > 0;
+        // Keep AI messages that have visible text OR streamed reasoning so the
+        // thinking panel can appear before any answer text arrives.
+        if (AIMessage.isInstance(msg))
+          return msg.text.trim().length > 0 || extractReasoning(msg).length > 0;
         return false;
       }),
     [messages],
@@ -61,13 +65,23 @@ export function ChatThread({
             );
           }
 
+          const reasoning = AIMessage.isInstance(msg) ? extractReasoning(msg) : "";
+          const hasText = msg.text.trim().length > 0;
+          // Reasoning is still streaming while the run is active, this is the
+          // last message, and no answer text has arrived yet.
+          const reasoningStreaming = isLoading && i === rendered.length - 1 && !hasText;
           const citations = extractCitations(msg.text);
           return (
             <div key={key} className="flex items-start gap-3">
               <Avatar kind="assistant" />
-              <div className="min-w-0 max-w-[85%] rounded-2xl rounded-tl-sm border bg-card px-4 py-3 shadow-sm">
-                <Response>{stripSources(msg.text)}</Response>
-                <Citations citations={citations} />
+              <div className="min-w-0 max-w-[85%]">
+                {reasoning && <Reasoning reasoning={reasoning} streaming={reasoningStreaming} />}
+                {hasText && (
+                  <div className="rounded-2xl rounded-tl-sm border bg-card px-4 py-3 shadow-sm">
+                    <Response>{stripSources(msg.text)}</Response>
+                    <Citations citations={citations} />
+                  </div>
+                )}
               </div>
             </div>
           );

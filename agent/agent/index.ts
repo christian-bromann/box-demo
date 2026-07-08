@@ -11,4 +11,6 @@ export const agent = createDeepAgent({
   tools,
   subagents: buildSubagents(tools),
   systemPrompt: ORCHESTRATOR_PROMPT,
+}).withConfig({
+  recursionLimit: 1000
 });

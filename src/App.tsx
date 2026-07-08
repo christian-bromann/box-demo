@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStream } from "@langchain/react";
 import { AlertTriangleIcon } from "lucide-react";
 import { Header } from "@/components/Header";
@@ -30,8 +30,8 @@ export function App() {
     onThreadId: setThreadId,
   });
 
-  const loadFiles = useCallback(async () => {
-    setFilesLoading(true);
+  const loadFiles = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setFilesLoading(true);
     try {
       const result = await fetchFiles();
       setFiles(result.files);
@@ -39,7 +39,7 @@ export function App() {
     } catch (e) {
       setFilesError(e instanceof Error ? e.message : String(e));
     } finally {
-      setFilesLoading(false);
+      if (!opts?.silent) setFilesLoading(false);
     }
   }, []);
 
@@ -49,6 +49,15 @@ export function App() {
       .catch(() => { });
     void loadFiles();
   }, [loadFiles]);
+
+  // Refresh the Box file list whenever a run finishes, so files the agent wrote
+  // (via `write_summary_to_box`, in the orchestrator or any subagent) show up
+  // without a manual refresh. Silent so the sidebar never flashes a spinner.
+  const wasStreaming = useRef(false);
+  useEffect(() => {
+    if (wasStreaming.current && !stream.isLoading) void loadFiles({ silent: true });
+    wasStreaming.current = stream.isLoading;
+  }, [stream.isLoading, loadFiles]);
 
   const suggestions = config?.suggestions ?? [];
   const modelLabel = config?.model ? `${config.model.provider}:${config.model.model}` : null;
@@ -87,7 +96,7 @@ export function App() {
           error={filesError}
           folderId={config?.folderId ?? ""}
           loading={filesLoading}
-          onRefresh={loadFiles}
+          onRefresh={() => void loadFiles()}
         />
 
         <main className="flex min-h-0 flex-1 flex-col">
@@ -118,6 +127,7 @@ export function App() {
         </main>
 
         <ActivityPanel
+          stream={stream}
           todos={todos}
           toolCalls={toolCalls}
           subagents={subagents}

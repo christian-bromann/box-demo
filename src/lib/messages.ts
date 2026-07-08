@@ -1,6 +1,20 @@
+import type { AIMessage } from "@langchain/core/messages";
+
 export interface Citation {
   name: string;
   url: string;
+}
+
+/** Concatenate all `reasoning` content blocks of an AI message into one string. */
+export function extractReasoning(msg: AIMessage): string {
+  const blocks = msg.contentBlocks ?? [];
+  return blocks
+    .filter((block): block is { type: "reasoning"; reasoning: string } =>
+      block.type === "reasoning" && typeof (block as { reasoning?: unknown }).reasoning === "string",
+    )
+    .map((block) => block.reasoning)
+    .join("")
+    .trim();
 }
 
 const BOX_LINK_RE = /\[([^\]]+)\]\((https:\/\/app\.box\.com\/file\/\d+)\)/g;

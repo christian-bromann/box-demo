@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivityIcon,
   CircleCheckIcon,
@@ -6,7 +7,8 @@ import {
   ListTodoIcon,
   UsersIcon,
 } from "lucide-react";
-import type { AssembledToolCall, SubagentDiscoverySnapshot } from "@langchain/react";
+import type { AnyStream, AssembledToolCall, SubagentDiscoverySnapshot } from "@langchain/react";
+import { useToolCalls } from "@langchain/react";
 import { ToolActivity, type ToolStatus } from "@/components/ToolActivity";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -48,7 +50,89 @@ function PlanSection({ todos }: { todos: TodoItem[] }) {
   );
 }
 
-function SubagentsSection({ subagents }: { subagents: SubagentDiscoverySnapshot[] }) {
+function SubagentCard({
+  stream,
+  subagent,
+}: {
+  stream: AnyStream;
+  subagent: SubagentDiscoverySnapshot;
+}) {
+  // Tool calls scoped to this subagent's namespace — this is what surfaces
+  // "what the subagent is actually doing" (Box searches, AI reads, etc.).
+  const toolCalls = useToolCalls(stream, subagent).filter((tc) => !HIDDEN_TOOLS.has(tc.name));
+  const [taskOpen, setTaskOpen] = useState(false);
+  const running = subagent.status === "running";
+
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold">{subagent.name}</span>
+        <Badge
+          variant={
+            subagent.status === "complete"
+              ? "success"
+              : subagent.status === "error"
+                ? "outline"
+                : "muted"
+          }
+        >
+          {subagent.status === "complete" ? "done" : subagent.status === "error" ? "error" : "working…"}
+        </Badge>
+      </div>
+
+      {subagent.taskInput && (
+        <button
+          type="button"
+          onClick={() => setTaskOpen((v) => !v)}
+          className="mt-1.5 block w-full text-left"
+          title={taskOpen ? "Collapse task" : "Show full task"}
+        >
+          <p
+            className={cn(
+              "text-[0.7rem] leading-snug text-muted-foreground",
+              !taskOpen && "line-clamp-2",
+            )}
+          >
+            {subagent.taskInput}
+          </p>
+        </button>
+      )}
+
+      {subagent.error && (
+        <p className="mt-1.5 text-[0.7rem] leading-snug text-destructive">{subagent.error}</p>
+      )}
+
+      {(toolCalls.length > 0 || running) && (
+        <div className="mt-2 space-y-1.5 border-t pt-2">
+          <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+            Activity{toolCalls.length > 0 ? ` · ${toolCalls.length}` : ""}
+          </p>
+          {toolCalls.length === 0 && running ? (
+            <p className="text-[0.7rem] text-muted-foreground shimmer">Getting to work…</p>
+          ) : (
+            toolCalls.map((tc) => (
+              <ToolActivity
+                key={tc.id}
+                name={tc.name}
+                args={tc.args as Record<string, unknown>}
+                output={tc.output ?? undefined}
+                status={tc.status as ToolStatus}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubagentsSection({
+  stream,
+  subagents,
+}: {
+  stream: AnyStream;
+  subagents: SubagentDiscoverySnapshot[];
+}) {
   if (subagents.length === 0) return null;
   const done = subagents.filter((s) => s.status === "complete" || s.status === "error").length;
   const progress = (done / subagents.length) * 100;
@@ -65,23 +149,7 @@ function SubagentsSection({ subagents }: { subagents: SubagentDiscoverySnapshot[
       </div>
       <div className="space-y-2">
         {subagents.map((s) => (
-          <div key={s.id} className="rounded-lg border bg-card p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold">{s.name}</span>
-              <Badge
-                variant={
-                  s.status === "complete" ? "success" : s.status === "error" ? "outline" : "muted"
-                }
-              >
-                {s.status === "complete" ? "done" : s.status === "error" ? "error" : "working…"}
-              </Badge>
-            </div>
-            {s.taskInput && (
-              <p className="mt-1.5 line-clamp-3 text-[0.7rem] leading-snug text-muted-foreground">
-                {s.taskInput}
-              </p>
-            )}
-          </div>
+          <SubagentCard key={s.id} stream={stream} subagent={s} />
         ))}
       </div>
     </section>
@@ -119,11 +187,13 @@ function SectionHeading({ icon, children }: { icon: React.ReactNode; children: R
 }
 
 export function ActivityPanel({
+  stream,
   todos,
   toolCalls,
   subagents,
   active,
 }: {
+  stream: AnyStream;
   todos: TodoItem[];
   toolCalls: AssembledToolCall[];
   subagents: SubagentDiscoverySnapshot[];
@@ -152,7 +222,7 @@ export function ActivityPanel({
         ) : (
           <>
             <PlanSection todos={todos} />
-            <SubagentsSection subagents={subagents} />
+            <SubagentsSection stream={stream} subagents={subagents} />
             <ToolsSection toolCalls={toolCalls} />
           </>
         )}
