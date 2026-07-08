@@ -12,7 +12,7 @@ if (!ANTHROPIC_API_KEY) {
 const THINKING_BUDGET = Number(process.env.THINKING_BUDGET_TOKENS ?? 2048);
 
 export const model = new ChatAnthropic({
-  model: "claude-haiku-4-5",
+  model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5",
   thinking: { type: "enabled", budget_tokens: THINKING_BUDGET },
   maxTokens: THINKING_BUDGET + 4096,
 });
