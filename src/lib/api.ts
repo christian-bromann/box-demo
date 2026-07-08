@@ -11,7 +11,9 @@ export interface BoxFile {
   id: string;
   name: string;
   url: string;
+  type: "file" | "folder";
   extension?: string;
+  children?: BoxFile[];
 }
 
 export async function fetchConfig(): Promise<AppConfig> {

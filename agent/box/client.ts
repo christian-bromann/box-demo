@@ -36,6 +36,7 @@ export interface ExtractField {
 }
 
 const APP_FILE_BASE = "https://app.box.com/file";
+const APP_FOLDER_BASE = "https://app.box.com/folder";
 
 function isConflict(err: unknown): boolean {
   return (
@@ -49,6 +50,14 @@ function isConflict(err: unknown): boolean {
 
 export function fileUrl(id: string): string {
   return `${APP_FILE_BASE}/${id}`;
+}
+
+export function folderUrl(id: string): string {
+  return `${APP_FOLDER_BASE}/${id}`;
+}
+
+export interface BoxTreeNode extends BoxFileRef {
+  children?: BoxTreeNode[];
 }
 
 function buildClient(): BoxClient {
@@ -109,15 +118,38 @@ export class BoxService {
         size?: number;
         extension?: string;
       };
+      const isFolder = e.type === "folder";
       return {
         id: e.id ?? "",
         name: e.name ?? "",
-        type: e.type === "folder" ? "folder" : "file",
+        type: isFolder ? "folder" : "file",
         extension: e.extension,
         size: e.size,
-        url: fileUrl(e.id ?? ""),
+        url: isFolder ? folderUrl(e.id ?? "") : fileUrl(e.id ?? ""),
       };
     });
+  }
+
+  // Recursively list a folder as a tree of files and folders. Folders come with
+  // a `children` array. Depth is capped to guard against runaway recursion.
+  async listFolderTree(folderId: string, maxDepth = 6): Promise<BoxTreeNode[]> {
+    const items = await this.listFolderItems(folderId);
+    const nodes: BoxTreeNode[] = await Promise.all(
+      items.map(async (item): Promise<BoxTreeNode> => {
+        if (item.type === "folder") {
+          const children =
+            maxDepth > 0 ? await this.listFolderTree(item.id, maxDepth - 1) : [];
+          return { ...item, children };
+        }
+        return item;
+      }),
+    );
+    // Folders first, then files; each group sorted case-insensitively by name.
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+    return nodes;
   }
 
   async search(query: string, folderId: string): Promise<BoxFileRef[]> {
@@ -209,7 +241,7 @@ export class BoxService {
         id: folder.id ?? "",
         name: folder.name ?? name,
         type: "folder",
-        url: fileUrl(folder.id ?? ""),
+        url: folderUrl(folder.id ?? ""),
       };
     } catch (err) {
       if (isConflict(err)) {
@@ -219,6 +251,24 @@ export class BoxService {
       }
       throw err;
     }
+  }
+
+  // Resolve a "/"-separated folder path under parentId, creating any missing
+  // folders along the way. Returns the id of the deepest folder. An empty or
+  // whitespace-only path resolves to parentId itself.
+  async resolveFolderPath(parentId: string, path: string): Promise<string> {
+    const segments = (path ?? "")
+      .split("/")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s !== "." && s !== "..");
+
+    let current = parentId;
+    for (const segment of segments) {
+      const items = await this.listFolderItems(current);
+      const existing = items.find((i) => i.type === "folder" && i.name === segment);
+      current = existing ? existing.id : (await this.createFolder(segment, current)).id;
+    }
+    return current;
   }
 
   async uploadFile(

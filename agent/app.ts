@@ -45,11 +45,16 @@ app.get("/api/files", async (c) => {
     if (!folderId) {
       return c.json({ files: [], error: "BOX_ROOT_FOLDER_ID is not set." });
     }
-    const items = await getBoxService().listFolderItems(folderId);
-    const files = items
-      .filter((f) => f.type === "file")
-      .map((f) => ({ id: f.id, name: f.name, url: f.url, extension: f.extension }));
-    return c.json({ files });
+    const tree = await getBoxService().listFolderTree(folderId);
+    const toNode = (n: (typeof tree)[number]): unknown => ({
+      id: n.id,
+      name: n.name,
+      url: n.url,
+      type: n.type,
+      extension: n.extension,
+      ...(n.type === "folder" ? { children: (n.children ?? []).map(toNode) } : {}),
+    });
+    return c.json({ files: tree.map(toNode) });
   } catch (err) {
     return c.json({
       files: [],

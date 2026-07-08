@@ -3,12 +3,70 @@ import { z } from "zod";
 import type { StructuredTool } from "@langchain/core/tools";
 import { getBoxService } from "../box/client.js";
 
+function fileUrlForFolder(id: string): string {
+  return `https://app.box.com/folder/${id}`;
+}
+
 function rootFolderId(): string {
   const id = process.env.BOX_ROOT_FOLDER_ID?.trim();
   if (!id) {
     throw new Error("BOX_ROOT_FOLDER_ID is not set. Run `bun run seed` and copy the folder id.");
   }
   return id;
+}
+
+// Box rejects file names that contain path separators or control characters,
+// that are empty, or that are "." / "..". It also trims poorly with leading/
+// trailing whitespace and dots. Normalize whatever the model produces into a
+// safe .md file name so uploads don't fail with "item_name_invalid".
+function sanitizeFileName(raw: string): string {
+  let name = (raw ?? "").normalize("NFC");
+
+  // Keep only the last path segment if the model passes something like
+  // "reports/summary.md" or a Windows-style path.
+  const lastSep = Math.max(name.lastIndexOf("/"), name.lastIndexOf("\\"));
+  if (lastSep >= 0) name = name.slice(lastSep + 1);
+
+  // Replace characters Box disallows (and control chars) with a hyphen.
+  // eslint-disable-next-line no-control-regex
+  name = name.replace(/[/\\<>:"|?*\x00-\x1f]/g, "-");
+
+  // Collapse whitespace runs and trim leading/trailing whitespace and dots.
+  name = name.replace(/\s+/g, " ").trim().replace(/^\.+|\.+$/g, "").trim();
+
+  if (!name) name = "summary";
+
+  // Ensure a single .md extension.
+  if (!/\.md$/i.test(name)) name = `${name}.md`;
+
+  // Box caps names at 255 characters (including extension).
+  if (name.length > 255) {
+    name = `${name.slice(0, 255 - 3)}.md`;
+  }
+
+  return name;
+}
+
+// Normalize a "/"-separated folder path. Each segment is stripped of characters
+// Box disallows, whitespace, and leading/trailing dots. Empty/"."/".." segments
+// are dropped. Returns a clean "a/b/c" path (possibly empty).
+function sanitizeFolderPath(raw: string): string {
+  return (raw ?? "")
+    .normalize("NFC")
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((segment) =>
+      segment
+        // eslint-disable-next-line no-control-regex
+        .replace(/[<>:"|?*\x00-\x1f]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^\.+|\.+$/g, "")
+        .trim()
+        .slice(0, 255),
+    )
+    .filter((segment) => segment.length > 0)
+    .join("/");
 }
 
 export function buildBoxTools(): StructuredTool[] {
@@ -109,26 +167,83 @@ export function buildBoxTools(): StructuredTool[] {
     },
   );
 
+  const createBoxFolder = tool(
+    async ({ path }: { path: string }) => {
+      const clean = sanitizeFolderPath(path);
+      if (!clean) {
+        return "No valid folder name was provided. Give a folder name like 'Findings'.";
+      }
+      const folderId = await getBoxService().resolveFolderPath(rootFolderId(), clean);
+      return `Folder ready in Box: "${clean}" (folderId: ${folderId}, ${fileUrlForFolder(
+        folderId,
+      )}).`;
+    },
+    {
+      name: "create_box_folder",
+      description:
+        "Create a folder (or nested folder path) inside the company knowledge base in Box. " +
+        "Accepts a single name like 'Findings' or a nested path like 'Findings/2026'. " +
+        "Folders that already exist are reused, not duplicated. Use this when the user asks " +
+        "to create or organize files into a folder.",
+      schema: z.object({
+        path: z
+          .string()
+          .describe(
+            "Folder name or '/'-separated nested path, e.g. 'Findings' or 'Reports/Security'.",
+          ),
+      }),
+    },
+  );
+
   const writeSummaryToBox = tool(
-    async ({ filename, markdown }: { filename: string; markdown: string }) => {
-      const safe = filename.endsWith(".md") ? filename : `${filename}.md`;
-      const file = await getBoxService().uploadFile(rootFolderId(), safe, markdown);
-      return `Wrote summary to Box: [${file.name}](${file.url}) (fileId: ${file.id}).`;
+    async ({
+      filename,
+      markdown,
+      folder,
+    }: {
+      filename: string;
+      markdown: string;
+      folder?: string;
+    }) => {
+      const safe = sanitizeFileName(filename);
+      const folderPath = sanitizeFolderPath(folder ?? "");
+      const box = getBoxService();
+      const parentId = folderPath
+        ? await box.resolveFolderPath(rootFolderId(), folderPath)
+        : rootFolderId();
+      const file = await box.uploadFile(parentId, safe, markdown);
+      const location = folderPath ? ` in folder "${folderPath}"` : "";
+      return `Wrote summary to Box${location}: [${file.name}](${file.url}) (fileId: ${file.id}).`;
     },
     {
       name: "write_summary_to_box",
       description:
         "Save a Markdown report back to the knowledge base folder in Box so colleagues can " +
         "find it. Use this only when the user asks for a written summary, report, or briefing " +
-        "to be saved.",
+        "to be saved. Optionally pass a `folder` path to save inside a (possibly new) " +
+        "subfolder; missing folders are created automatically.",
       schema: z.object({
         filename: z
           .string()
           .describe("File name for the report, e.g. 'security-posture-summary.md'."),
         markdown: z.string().describe("The full Markdown content of the report."),
+        folder: z
+          .string()
+          .optional()
+          .describe(
+            "Optional subfolder path to save into, e.g. 'Findings' or 'Reports/Security'. " +
+              "Do NOT include the folder in `filename`. Leave empty to save in the root.",
+          ),
       }),
     },
   );
 
-  return [searchBoxFiles, listBoxFiles, askBoxAi, extractBoxFields, writeSummaryToBox];
+  return [
+    searchBoxFiles,
+    listBoxFiles,
+    askBoxAi,
+    extractBoxFields,
+    createBoxFolder,
+    writeSummaryToBox,
+  ];
 }

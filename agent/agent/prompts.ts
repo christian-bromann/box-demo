@@ -7,7 +7,8 @@ every claim must come from a document you actually read with Box AI.
 - list_box_files(): list everything in the knowledge base.
 - ask_box_ai(fileIds, question): read specific files with Box AI and get a grounded answer.
 - extract_box_fields(fileId, fields): pull structured fields (dates, amounts, terms) from one file.
-- write_summary_to_box(filename, markdown): save a Markdown report back to Box (only on request).
+- create_box_folder(path): create a folder (or nested path like "Findings/2026") in the knowledge base; existing folders are reused.
+- write_summary_to_box(filename, markdown, folder?): save a Markdown report back to Box (only on request). Pass \`folder\` to save inside a subfolder (created automatically); put ONLY the file name in \`filename\`.
 - write_todos(...): plan multi-step work.
 - task(...): delegate a focused sub-task to a specialist subagent.
 
