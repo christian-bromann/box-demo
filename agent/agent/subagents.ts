@@ -1,5 +1,6 @@
 import type { SubAgent } from "deepagents";
 import type { StructuredTool } from "@langchain/core/tools";
+import { responsesHistoryFix } from "./middleware.js";
 import {
   CONTRACTS_RESEARCHER_PROMPT,
   POLICY_RESEARCHER_PROMPT,
@@ -15,6 +16,7 @@ export function buildSubagents(tools: StructuredTool[]): SubAgent[] {
         "knowledge base. Returns findings grounded in specific Box files.",
       systemPrompt: SECURITY_RESEARCHER_PROMPT,
       tools,
+      middleware: [responsesHistoryFix],
     },
     {
       name: "contracts-researcher",
@@ -23,6 +25,7 @@ export function buildSubagents(tools: StructuredTool[]): SubAgent[] {
         "against the Box knowledge base. Returns findings grounded in specific Box files.",
       systemPrompt: CONTRACTS_RESEARCHER_PROMPT,
       tools,
+      middleware: [responsesHistoryFix],
     },
     {
       name: "policy-researcher",
@@ -31,6 +34,7 @@ export function buildSubagents(tools: StructuredTool[]): SubAgent[] {
         "Returns findings grounded in specific Box files.",
       systemPrompt: POLICY_RESEARCHER_PROMPT,
       tools,
+      middleware: [responsesHistoryFix],
     },
   ];
 }

@@ -1,5 +1,6 @@
 import { createDeepAgent } from "deepagents";
 import { buildModel } from "./model.js";
+import { responsesHistoryFix } from "./middleware.js";
 import { ORCHESTRATOR_PROMPT } from "./prompts.js";
 import { buildSubagents } from "./subagents.js";
 import { buildBoxTools } from "./tools.js";
@@ -11,6 +12,7 @@ export const agent = createDeepAgent({
   tools,
   subagents: buildSubagents(tools),
   systemPrompt: ORCHESTRATOR_PROMPT,
+  middleware: [responsesHistoryFix],
 }).withConfig({
   recursionLimit: 1000
 });
