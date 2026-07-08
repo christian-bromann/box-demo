@@ -47,7 +47,18 @@ export function ChatThread({
   }, [messages]);
 
   const lastMsg = rendered.at(-1);
-  const waiting = isLoading && (!lastMsg || HumanMessage.isInstance(lastMsg));
+  // The run streams several assistant messages (plan, "dispatching…", final
+  // answer) with gaps in between where subagents/tools work in the background.
+  // Keep the working indicator visible for the whole run, not just before the
+  // first assistant message. Suppress it only when the last message is an
+  // assistant turn that's currently streaming reasoning with no text yet, since
+  // that already renders its own inline streaming indicator.
+  const lastStreamingReasoningOnly =
+    !!lastMsg &&
+    AIMessage.isInstance(lastMsg) &&
+    lastMsg.text.trim().length === 0 &&
+    extractReasoning(lastMsg).length > 0;
+  const waiting = isLoading && !lastStreamingReasoningOnly;
 
   return (
     <div className="scroll-area min-h-0 flex-1 overflow-y-auto">

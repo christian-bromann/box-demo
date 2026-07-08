@@ -1,8 +1,7 @@
 import type { SubAgent } from "deepagents";
 import { responsesHistoryFix } from "./middleware.js";
 import {
-  searchBoxFiles, listBoxFiles, extractBoxFields, askBoxAi,
-  createBoxFolder, writeSummaryToBox
+  searchBoxFiles, listBoxFiles, extractBoxFields, askBoxAi
 } from "./tools.js";
 import {
   CONTRACTS_RESEARCHER_PROMPT,
@@ -10,9 +9,10 @@ import {
   SECURITY_RESEARCHER_PROMPT,
 } from "./prompts.js";
 
+// Subagents inherit the Box filesystem tools (ls/read_file/write_file/…) from
+// the parent deep agent's backend, so we only list the Box AI tools here.
 const tools = [
-  searchBoxFiles, listBoxFiles, extractBoxFields, askBoxAi,
-  createBoxFolder, writeSummaryToBox
+  searchBoxFiles, listBoxFiles, extractBoxFields, askBoxAi
 ];
 
 export const subagents: SubAgent[] = [

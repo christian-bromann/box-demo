@@ -89,10 +89,21 @@ function buildClient(): BoxClient {
 }
 
 let cached: BoxService | null = null;
+let cachedClient: BoxClient | null = null;
 
 export function getBoxService(): BoxService {
-  if (!cached) cached = new BoxService(buildClient());
+  if (!cached) cached = new BoxService(getBoxClient());
   return cached;
+}
+
+/**
+ * The raw, authenticated Box SDK client (shared singleton). Used by the
+ * deepagents filesystem backend so it authenticates exactly like the rest of
+ * the app (developer token or CCG), rather than requiring its own credentials.
+ */
+export function getBoxClient(): BoxClient {
+  if (!cachedClient) cachedClient = buildClient();
+  return cachedClient;
 }
 
 export class BoxService {
